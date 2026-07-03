@@ -12,7 +12,7 @@
     {"fieldname": "boq_project_budget", "fieldtype": "Link", "in_list_view": 1, "label": "BOQ Project Budget", "options": "BOQ Project Budget", "reqd": 1},
     {"fieldname": "boq_category", "fieldtype": "Link", "in_list_view": 1, "label": "BOQ Category", "options": "BOQ Budget Category", "reqd": 1},
     {"fieldname": "voucher_type", "fieldtype": "Data", "in_list_view": 1, "label": "Voucher Type"},
-    {"fieldname": "voucher_no", "fieldtype": "Dynamic Link", "in_list_view": 1, "label": "Voucher No", "options": "voucher_type"},
+    {"fieldname": "voucher_no", "fieldtype": "Data", "in_list_view": 1, "label": "Voucher No"},
     {"fieldname": "voucher_detail_no", "fieldtype": "Data", "label": "Voucher Detail No"},
     {"fieldname": "column_break_1", "fieldtype": "Column Break"},
     {"fieldname": "entry_type", "fieldtype": "Select", "in_list_view": 1, "label": "Entry Type", "options": "Reserve\nRelease\nActual", "reqd": 1},
