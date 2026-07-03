@@ -83,7 +83,8 @@ required_apps = ["erpnext"]
 # ------------
 
 # before_install = "boq_budget_control.install.before_install"
-# after_install = "boq_budget_control.install.after_install"
+after_install = "boq_budget_control.boq_budget.setup.make_custom_fields"
+after_migrate = "boq_budget_control.boq_budget.setup.make_custom_fields"
 
 # Uninstallation
 # ------------
