@@ -1,0 +1,100 @@
+{
+  "actions": [],
+  "creation": "2026-07-03 18:00:00",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "boq_category",
+    "category_name",
+    "budget_amount",
+    "control_action",
+    "column_break_1",
+    "reserved_amount",
+    "actual_amount",
+    "available_amount",
+    "remarks"
+  ],
+  "fields": [
+    {
+      "fieldname": "boq_category",
+      "fieldtype": "Link",
+      "options": "BOQ Budget Category",
+      "label": "BOQ Category",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "category_name",
+      "fieldtype": "Data",
+      "label": "Category Name",
+      "fetch_from": "boq_category.category_name",
+      "read_only": 1,
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "budget_amount",
+      "fieldtype": "Currency",
+      "label": "Budget Amount",
+      "reqd": 1,
+      "permlevel": 1,
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "control_action",
+      "fieldtype": "Select",
+      "label": "Control Action",
+      "options": "Stop\nWarn\nAllow",
+      "default": "Stop",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "reserved_amount",
+      "fieldtype": "Currency",
+      "label": "Reserved Amount",
+      "read_only": 1,
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
+      "fieldname": "actual_amount",
+      "fieldtype": "Currency",
+      "label": "Actual Amount",
+      "read_only": 1,
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
+      "fieldname": "available_amount",
+      "fieldtype": "Currency",
+      "label": "Available Amount",
+      "read_only": 1,
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
+      "fieldname": "remarks",
+      "fieldtype": "Small Text",
+      "label": "Remarks"
+    }
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2026-07-03 18:00:00",
+  "modified_by": "Administrator",
+  "module": "BOQ Budget",
+  "name": "BOQ Project Budget Category",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

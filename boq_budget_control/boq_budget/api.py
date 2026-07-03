@@ -21,13 +21,45 @@ def get_budget_for_project(project, company=None):
 
 @frappe.whitelist()
 def get_category_options(budget):
-	"""Return the BOQ Budget Category rows for a given budget parent."""
+	"""Return the master categories allocated in a given budget."""
 	if not budget or not frappe.db.exists("BOQ Project Budget", budget):
 		return []
 	return frappe.db.get_all(
-		"BOQ Budget Category",
+		"BOQ Project Budget Category",
 		filters={"parent": budget, "parenttype": "BOQ Project Budget"},
-		fields=["name", "category_code", "category_name"],
+		fields=["boq_category", "category_name", "budget_amount", "control_action"],
+	)
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def boq_category_query(doctype, txt, searchfield, start, page_len, filters):
+	"""Link-field query: only master categories allocated in the selected budget.
+
+	Wired from the PO/PI client scripts via ``set_query`` with
+	``{query: "...boq_category_query", filters: {budget: <budget>}}``.
+	"""
+	budget = (filters or {}).get("budget")
+	if not budget:
+		return []
+	allocated = frappe.db.get_all(
+		"BOQ Project Budget Category",
+		filters={"parent": budget, "parenttype": "BOQ Project Budget"},
+		pluck="boq_category",
+	)
+	if not allocated:
+		return []
+	like = f"%{txt or ''}%"
+	return frappe.db.get_all(
+		"BOQ Budget Category",
+		filters={
+			"name": ["in", allocated],
+			"category_name": ["like", like],
+		},
+		fields=["name", "category_name"],
+		start=start,
+		page_length=page_len,
+		as_list=True,
 	)
 
 

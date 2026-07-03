@@ -1,17 +1,12 @@
 {
   "actions": [],
+  "autoname": "field:category_code",
   "creation": "2026-07-03 10:00:00",
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [
     "category_code",
     "category_name",
-    "budget_amount",
-    "control_action",
-    "column_break_1",
-    "reserved_amount",
-    "actual_amount",
-    "available_amount",
     "remarks"
   ],
   "fields": [
@@ -21,62 +16,14 @@
       "in_list_view": 1,
       "label": "Category Code",
       "reqd": 1,
-      "columns": 1
+      "unique": 1
     },
     {
       "fieldname": "category_name",
       "fieldtype": "Data",
       "in_list_view": 1,
       "label": "Category Name",
-      "reqd": 1,
-      "columns": 2
-    },
-    {
-      "fieldname": "budget_amount",
-      "fieldtype": "Currency",
-      "in_list_view": 1,
-      "label": "Budget Amount",
-      "reqd": 1,
-      "permlevel": 1,
-      "columns": 2
-    },
-    {
-      "fieldname": "control_action",
-      "fieldtype": "Select",
-      "in_list_view": 1,
-      "label": "Control Action",
-      "options": "Stop\nWarn\nAllow",
-      "reqd": 1,
-      "default": "Stop",
-      "columns": 1
-    },
-    {
-      "fieldname": "column_break_1",
-      "fieldtype": "Column Break"
-    },
-    {
-      "fieldname": "reserved_amount",
-      "fieldtype": "Currency",
-      "in_list_view": 1,
-      "label": "Reserved Amount",
-      "read_only": 1,
-      "columns": 1
-    },
-    {
-      "fieldname": "actual_amount",
-      "fieldtype": "Currency",
-      "in_list_view": 1,
-      "label": "Actual Amount",
-      "read_only": 1,
-      "columns": 1
-    },
-    {
-      "fieldname": "available_amount",
-      "fieldtype": "Currency",
-      "in_list_view": 1,
-      "label": "Available Amount",
-      "read_only": 1,
-      "columns": 1
+      "reqd": 1
     },
     {
       "fieldname": "remarks",
@@ -84,15 +31,20 @@
       "label": "Remarks"
     }
   ],
-  "istable": 1,
   "links": [],
-  "modified": "2026-07-03 10:00:00",
+  "modified": "2026-07-03 18:00:00",
   "modified_by": "Administrator",
   "module": "BOQ Budget",
   "name": "BOQ Budget Category",
   "owner": "Administrator",
-  "permissions": [],
+  "permissions": [
+    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+    {"role": "BOQ Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+    {"role": "Purchase Manager", "read": 1},
+    {"role": "Accounts Manager", "read": 1}
+  ],
   "sort_field": "modified",
   "sort_order": "DESC",
-  "states": []
+  "states": [],
+  "track_changes": 1
 }

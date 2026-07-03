@@ -23,6 +23,17 @@ CUSTOM_FIELDS = {
     ],
 }
 
+# Standard main BOQ categories seeded so users have something to allocate against.
+DEFAULT_CATEGORIES = [
+    ("PRE", "Preliminaries"),
+    ("SUB", "Sub Structure"),
+    ("SUP", "Super Structure"),
+    ("BLK", "Block Work"),
+    ("FIN", "Finishes"),
+    ("MEP", "MEP Services"),
+    ("EXT", "External Works"),
+]
+
 
 def make_custom_fields():
     for dt, fields in CUSTOM_FIELDS.items():
@@ -37,3 +48,10 @@ def make_roles():
     if not frappe.db.exists("Role", "BOQ Manager"):
         frappe.get_doc({"doctype": "Role", "role_name": "BOQ Manager",
                         "desk_access": 1, "is_custom": 1}).insert(ignore_permissions=True)
+
+
+def make_categories():
+    for code, name in DEFAULT_CATEGORIES:
+        if not frappe.db.exists("BOQ Budget Category", code):
+            frappe.get_doc({"doctype": "BOQ Budget Category",
+                            "category_code": code, "category_name": name}).insert(ignore_permissions=True)

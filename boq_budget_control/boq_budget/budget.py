@@ -17,6 +17,10 @@ makes the ledger append-only and robust against cancel / amend.
 
 Only :func:`post_ledger` and :func:`post_reversal` are writers; every other public
 function in this module is a pure reader.
+
+Category model: a "category" is identified by the master ``BOQ Budget Category`` name.
+Its per-budget allocation (``budget_amount`` / ``control_action``) lives on the
+``BOQ Project Budget Category`` child row of the owning ``BOQ Project Budget``.
 """
 
 import frappe
@@ -37,6 +41,17 @@ def _signed(entry_type, amount, is_reversal=0):
 	if is_reversal:
 		sign = -sign
 	return sign * flt(amount)
+
+
+def _allocation(budget, category):
+	"""Return ``{budget_amount, control_action}`` for a category's allocation row
+	within a budget, or ``None`` when the budget does not allocate that category."""
+	return frappe.db.get_value(
+		"BOQ Project Budget Category",
+		{"parent": budget, "parenttype": "BOQ Project Budget", "boq_category": category},
+		["budget_amount", "control_action"],
+		as_dict=True,
+	)
 
 
 # ---------------------------------------------------------------------------
@@ -65,9 +80,8 @@ def get_category_summary(budget, category):
 		elif r["entry_type"] == "Actual":
 			actual += signed
 
-	budget_amount = flt(
-		frappe.db.get_value("BOQ Budget Category", category, "budget_amount")
-	)
+	alloc = _allocation(budget, category)
+	budget_amount = flt(alloc.budget_amount) if alloc else 0.0
 	available = budget_amount - reserved - actual
 
 	return {
@@ -96,7 +110,7 @@ def refresh_summary(budget_name):
 	total_budget = 0.0
 
 	for row in budget_doc.categories:
-		summary = get_category_summary(budget_name, row.name)
+		summary = get_category_summary(budget_name, row.boq_category)
 		row.db_set({
 			"reserved_amount": summary["reserved"],
 			"actual_amount": summary["actual"],
@@ -246,7 +260,8 @@ def validate_row(budget, category, amount, throw=True):
 	* ``Warn`` and over budget -> ``frappe.msgprint`` (orange, when ``throw``), else ``("warn", ...)``.
 	"""
 	available = get_available(budget, category)
-	control_action = frappe.db.get_value("BOQ Budget Category", category, "control_action")
+	alloc = _allocation(budget, category)
+	control_action = alloc.control_action if alloc else "Stop"
 
 	if flt(amount) <= available or control_action == "Allow":
 		return ("ok", available)

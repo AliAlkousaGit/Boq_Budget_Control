@@ -12,8 +12,8 @@ class TestBOQProjectBudget(FrappeTestCase):
             "fiscal_year": _ensure_fiscal_year(),
             "budget_date": today(),
             "categories": [
-                {"category_code": "PRE", "category_name": "Preliminaries", "budget_amount": 1000, "control_action": "Stop"},
-                {"category_code": "SUB", "category_name": "Sub Structure", "budget_amount": 500, "control_action": "Warn"},
+                {"boq_category": _cat("PRE", "Preliminaries"), "budget_amount": 1000, "control_action": "Stop"},
+                {"boq_category": _cat("SUB", "Sub Structure"), "budget_amount": 500, "control_action": "Warn"},
             ],
         })
         doc.insert()
@@ -24,7 +24,7 @@ class TestBOQProjectBudget(FrappeTestCase):
             "doctype": "BOQ Project Budget",
             "company": "CPC", "project": "PROJ-0001",
             "fiscal_year": _ensure_fiscal_year(), "budget_date": today(),
-            "categories": [{"category_code": "PRE", "category_name": "Preliminaries", "budget_amount": 1000, "control_action": "Stop"}],
+            "categories": [{"boq_category": _cat("PRE", "Preliminaries"), "budget_amount": 1000, "control_action": "Stop"}],
         })
         doc.insert(); doc.submit()
         self.assertEqual(doc.docstatus, 1)
@@ -32,7 +32,7 @@ class TestBOQProjectBudget(FrappeTestCase):
     def test_po_submit_reserves_and_cancel_reverses(self):
         from boq_budget_control.boq_budget.budget import get_available
         budget = _approved_budget_one_cat(1000, "Stop", "ELE", "Electrical Work")
-        cat = budget.categories[0].name
+        cat = budget.categories[0].boq_category
         po = _make_po(budget.name, cat, 600)
         po.submit()
         self.assertEqual(flt(get_available(budget.name, cat)), 400)
@@ -44,7 +44,7 @@ class TestBOQProjectBudget(FrappeTestCase):
     def test_pi_direct_consumes_actual(self):
         from boq_budget_control.boq_budget.budget import get_available
         budget = _approved_budget_one_cat(300, "Stop", "PLB", "Plumbing Work")
-        cat = budget.categories[0].name
+        cat = budget.categories[0].boq_category
         pi = _make_pi(budget.name, cat, 120)
         pi.submit()
         self.assertEqual(flt(get_available(budget.name, cat)), 180)
@@ -54,7 +54,7 @@ class TestBOQProjectBudget(FrappeTestCase):
     def test_pi_linked_to_po_releases_and_actuals(self):
         from boq_budget_control.boq_budget.budget import get_category_summary
         budget = _approved_budget_one_cat(1000, "Stop", "BLK", "Block Work")
-        cat = budget.categories[0].name
+        cat = budget.categories[0].boq_category
         po = _make_po(budget.name, cat, 500)
         po.submit()  # reserved 500
         self.assertEqual(flt(get_category_summary(budget.name, cat)["reserved"]), 500)
@@ -75,11 +75,19 @@ def _ensure_fiscal_year():
     return fy
 
 
+def _cat(code, name):
+    """Ensure a master BOQ Budget Category exists; return its name (= code)."""
+    if not frappe.db.exists("BOQ Budget Category", code):
+        frappe.get_doc({"doctype": "BOQ Budget Category",
+                        "category_code": code, "category_name": name}).insert()
+    return code
+
+
 def _approved_budget_one_cat(amount, action, code="PRE", name="Preliminaries"):
     b = frappe.get_doc({
         "doctype": "BOQ Project Budget", "company": "CPC", "project": "PROJ-0001",
         "fiscal_year": _ensure_fiscal_year(), "budget_date": today(),
-        "categories": [{"category_code": code, "category_name": name,
+        "categories": [{"boq_category": _cat(code, name),
                         "budget_amount": amount, "control_action": action}],
     }).insert()
     b.submit()

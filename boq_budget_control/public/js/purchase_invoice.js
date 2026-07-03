@@ -1,10 +1,6 @@
 frappe.ui.form.on("Purchase Invoice", {
-	refresh(frm) {
-		frm.set_query("boq_category", "items", (doc, cdt, cdn) => {
-			const row = locals[cdt][cdn];
-			return { filters: { parent: row.boq_project_budget, parenttype: "BOQ Project Budget" } };
-		});
-	},
+	setup(frm) { setup_pi_boq_query(frm); },
+	refresh(frm) { setup_pi_boq_query(frm); },
 });
 
 frappe.ui.form.on("Purchase Invoice Item", {
@@ -13,6 +9,16 @@ frappe.ui.form.on("Purchase Invoice Item", {
 	boq_category(frm, cdt, cdn) { refresh_pi_available(frm, cdt, cdn); },
 	po_detail(frm, cdt, cdn) { copy_po_boq(frm, cdt, cdn); },
 });
+
+function setup_pi_boq_query(frm) {
+	frm.set_query("boq_category", "items", (doc, cdt, cdn) => {
+		const row = locals[cdt][cdn];
+		return {
+			query: "boq_budget_control.boq_budget.api.boq_category_query",
+			filters: { budget: row.boq_project_budget },
+		};
+	});
+}
 
 async function fetch_pi_budget(frm, cdt, cdn) {
 	const row = locals[cdt][cdn];

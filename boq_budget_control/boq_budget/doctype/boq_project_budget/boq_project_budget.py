@@ -10,10 +10,10 @@ class BOQProjectBudget(Document):
         self._validate_categories()
 
     def _validate_categories(self):
-        codes = [c.category_code for c in self.categories]
-        if len(codes) != len(set(codes)):
-            frappe.throw(_("Category Codes must be unique within a budget."))
+        cats = [c.boq_category for c in self.categories]
+        if len(cats) != len(set(cats)):
+            frappe.throw(_("A BOQ Category may only appear once per budget."))
 
     def on_update_after_submit(self):
         from boq_budget_control.boq_budget.budget import refresh_summary
-        refresh_summary(self)
+        refresh_summary(self.name)
