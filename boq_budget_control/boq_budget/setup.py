@@ -31,3 +31,9 @@ def make_custom_fields():
             if frappe.db.exists("Custom Field", name):
                 continue
             frappe.get_doc({"doctype": "Custom Field", "dt": dt, **f}).insert(ignore_permissions=True)
+
+
+def make_roles():
+    if not frappe.db.exists("Role", "BOQ Manager"):
+        frappe.get_doc({"doctype": "Role", "role_name": "BOQ Manager",
+                        "desk_access": 1, "is_custom": 1}).insert(ignore_permissions=True)
