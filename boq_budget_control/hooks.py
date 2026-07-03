@@ -142,13 +142,18 @@ after_migrate = "boq_budget_control.boq_budget.setup.make_custom_fields"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Purchase Order": {
+		"before_submit": "boq_budget_control.boq_budget.purchase_order_events.before_submit",
+		"on_submit": "boq_budget_control.boq_budget.purchase_order_events.on_submit",
+		"on_cancel": "boq_budget_control.boq_budget.purchase_order_events.on_cancel",
+	},
+	"Purchase Invoice": {
+		"before_submit": "boq_budget_control.boq_budget.purchase_invoice_events.before_submit",
+		"on_submit": "boq_budget_control.boq_budget.purchase_invoice_events.on_submit",
+		"on_cancel": "boq_budget_control.boq_budget.purchase_invoice_events.on_cancel",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
