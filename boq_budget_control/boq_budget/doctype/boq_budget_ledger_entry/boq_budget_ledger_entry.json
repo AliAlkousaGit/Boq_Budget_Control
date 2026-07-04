@@ -23,16 +23,18 @@
     {"fieldname": "remarks", "fieldtype": "Small Text", "label": "Remarks"}
   ],
   "links": [],
-  "modified": "2026-07-03 10:00:00",
+  "modified": "2026-07-04 05:00:00",
   "modified_by": "Administrator",
   "module": "BOQ Budget",
   "name": "BOQ Budget Ledger Entry",
   "owner": "Administrator",
   "permissions": [
-    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
-    {"role": "BOQ Manager", "read": 1},
-    {"role": "Purchase Manager", "read": 1},
-    {"role": "Accounts Manager", "read": 1}
+    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1},
+    {"role": "BOQ Manager", "read": 1, "report": 1},
+    {"role": "Purchase Manager", "read": 1, "report": 1},
+    {"role": "Purchase User", "read": 1, "report": 1},
+    {"role": "Accounts Manager", "read": 1, "report": 1},
+    {"role": "Projects Manager", "read": 1, "report": 1}
   ],
   "sort_field": "posting_date",
   "sort_order": "DESC",

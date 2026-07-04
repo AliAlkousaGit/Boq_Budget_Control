@@ -13,6 +13,7 @@
  "roles": [
   {"role": "BOQ Manager"},
   {"role": "System Manager"},
-  {"role": "Accounts Manager"}
+  {"role": "Accounts Manager"},
+  {"role": "Purchase Manager"}
  ]
 }
