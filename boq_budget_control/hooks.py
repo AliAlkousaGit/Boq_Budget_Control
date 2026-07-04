@@ -13,6 +13,9 @@ required_apps = ["erpnext"]
 # Includes in <head>
 # ------------------
 
+# Bank reconciliation reminder popup shown once per session on Desk entry
+app_include_js = "boq_budget_control/public/js/bank_reco_reminder.js"
+
 # include js in doctype views
 doctype_js = {
 	"Purchase Order": "boq_budget_control/public/js/purchase_order.js",
