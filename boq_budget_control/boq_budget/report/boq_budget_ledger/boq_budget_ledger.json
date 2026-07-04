@@ -1,0 +1,18 @@
+{
+ "add_total_row": 1,
+ "apply_user_permissions": 1,
+ "disabled": 0,
+ "doctype": "Report",
+ "is_standard": "Yes",
+ "letter_head": "",
+ "module": "BOQ Budget",
+ "name": "BOQ Budget Ledger",
+ "ref_doctype": "BOQ Budget Ledger Entry",
+ "report_name": "BOQ Budget Ledger",
+ "report_type": "Script Report",
+ "roles": [
+  {"role": "BOQ Manager"},
+  {"role": "System Manager"},
+  {"role": "Accounts Manager"}
+ ]
+}
