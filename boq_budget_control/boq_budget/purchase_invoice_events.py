@@ -20,6 +20,7 @@ from boq_budget_control.boq_budget.budget import (
 	get_reserved_for_po_item,
 	post_ledger,
 	post_reversal,
+	project_has_budget,
 	refresh_summary,
 	validate_row,
 )
@@ -31,27 +32,28 @@ def _row_amount(item):
 	return flt(item.get("base_net_amount")) or flt(item.qty) * flt(item.rate)
 
 
-def _require(item):
+def _require(item, header_project):
 	budget = item.get("boq_project_budget")
 	category = item.get("boq_category")
-	if item.get("project") and not (budget and category):
+	if not (budget and category):
 		frappe.throw(
-			_("Row {0}: BOQ Project Budget and BOQ Category are required when Project is set.")
-			.format(item.idx)
+			_("Row {0}: BOQ Project Budget and BOQ Category are required "
+			  "(Project {1} has a BOQ budget).").format(item.idx, header_project)
 		)
-	if budget:
-		if frappe.db.get_value("BOQ Project Budget", budget, "docstatus") != 1:
-			frappe.throw(_("Row {0}: BOQ Project Budget must be Approved.").format(item.idx))
-		if frappe.db.get_value("BOQ Project Budget", budget, "is_closed"):
-			frappe.throw(_("Row {0}: BOQ Project Budget is closed.").format(item.idx))
+	if frappe.db.get_value("BOQ Project Budget", budget, "docstatus") != 1:
+		frappe.throw(_("Row {0}: BOQ Project Budget must be Approved.").format(item.idx))
+	if frappe.db.get_value("BOQ Project Budget", budget, "is_closed"):
+		frappe.throw(_("Row {0}: BOQ Project Budget is closed.").format(item.idx))
 	return budget, category
 
 
 def before_submit(doc, method):
+	# BOQ budget control applies only when the HEADER project has an approved budget.
+	# If it doesn't, the document behaves like vanilla ERPNext (fields optional).
+	if not project_has_budget(doc.get("project"), doc.get("company")):
+		return
 	for item in doc.items:
-		if not item.get("project"):
-			continue
-		budget, category = _require(item)
+		budget, category = _require(item, doc.project)
 		if item.get("po_detail"):
 			# Linked to PO: cannot invoice more than remains reserved for that PO item.
 			reserved = get_reserved_for_po_item(item.po_detail)
@@ -68,7 +70,7 @@ def before_submit(doc, method):
 def on_submit(doc, method):
 	budgets = set()
 	for item in doc.items:
-		if not (item.get("project") and item.get("boq_project_budget") and item.get("boq_category")):
+		if not (item.get("boq_project_budget") and item.get("boq_category")):
 			continue
 		amt = _row_amount(item)
 		if item.get("po_detail"):

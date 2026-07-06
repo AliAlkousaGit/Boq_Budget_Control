@@ -13,6 +13,7 @@ from frappe.utils import flt
 from boq_budget_control.boq_budget.budget import (
 	post_ledger,
 	post_reversal,
+	project_has_budget,
 	refresh_summary,
 	validate_row,
 )
@@ -25,15 +26,17 @@ def _row_amount(item):
 
 
 def before_submit(doc, method):
+	# BOQ budget control applies only when the HEADER project has an approved budget.
+	# If it doesn't, the document behaves like vanilla ERPNext (fields optional).
+	if not project_has_budget(doc.get("project"), doc.get("company")):
+		return
 	for item in doc.items:
-		if not item.get("project"):
-			continue
 		budget = item.get("boq_project_budget")
 		category = item.get("boq_category")
 		if not (budget and category):
 			frappe.throw(
-				_("Row {0}: BOQ Project Budget and BOQ Category are required when Project is set.")
-				.format(item.idx)
+				_("Row {0}: BOQ Project Budget and BOQ Category are required "
+				  "(Project {1} has a BOQ budget).").format(item.idx, doc.project)
 			)
 		if frappe.db.get_value("BOQ Project Budget", budget, "docstatus") != 1:
 			frappe.throw(_("Row {0}: BOQ Project Budget must be Approved.").format(item.idx))
@@ -45,7 +48,7 @@ def before_submit(doc, method):
 def on_submit(doc, method):
 	budgets = set()
 	for item in doc.items:
-		if item.get("project") and item.get("boq_project_budget") and item.get("boq_category"):
+		if item.get("boq_project_budget") and item.get("boq_category"):
 			post_ledger(
 				"Reserve", item.boq_project_budget, item.boq_category,
 				voucher_type="Purchase Order", voucher_no=doc.name,

@@ -302,3 +302,23 @@ def get_reserved_for_po_item(po_detail):
 	for r in rows:
 		total += _signed(r["entry_type"], r["amount"], r["is_reversal"])
 	return flt(total)
+
+
+# ---------------------------------------------------------------------------
+# Project-level trigger — does this Project carry an approved BOQ budget?
+# ---------------------------------------------------------------------------
+def project_has_budget(project, company=None):
+	"""Return ``True`` if an approved (``docstatus=1``) BOQ Project Budget exists
+	for the project.
+
+	The Purchase Order / Purchase Invoice ``before_submit`` hooks use this to decide
+	whether BOQ Project Budget + BOQ Category are mandatory on the document's rows.
+	When this is ``False``, budget control is skipped entirely for the document and
+	the rows behave like vanilla ERPNext.
+	"""
+	if not project:
+		return False
+	filters = {"project": project, "docstatus": 1}
+	if company:
+		filters["company"] = company
+	return bool(frappe.db.exists("BOQ Project Budget", filters))
