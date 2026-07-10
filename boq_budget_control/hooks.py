@@ -20,6 +20,7 @@ app_include_js = "boq_budget_control/public/js/bank_reco_reminder.js"
 doctype_js = {
 	"Purchase Order": "boq_budget_control/public/js/purchase_order.js",
 	"Purchase Invoice": "boq_budget_control/public/js/purchase_invoice.js",
+	"BOQ Project Budget": "boq_budget_control/public/js/boq_project_budget.js",
 }
 
 # Installation

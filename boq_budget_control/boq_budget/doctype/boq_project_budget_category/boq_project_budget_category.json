@@ -6,7 +6,10 @@
   "field_order": [
     "boq_category",
     "category_name",
+    "total",
+    "overhead_percentage",
     "budget_amount",
+    "net_budget_percent",
     "control_action",
     "column_break_1",
     "reserved_amount",
@@ -34,13 +37,40 @@
       "columns": 2
     },
     {
+      "fieldname": "total",
+      "fieldtype": "Currency",
+      "label": "Total",
+      "permlevel": 1,
+      "in_list_view": 1,
+      "columns": 2,
+      "description": "Gross amount. Budget Amount is auto-calculated as Total minus Overhead %."
+    },
+    {
+      "fieldname": "overhead_percentage",
+      "fieldtype": "Percent",
+      "label": "Overhead %",
+      "permlevel": 1,
+      "in_list_view": 1,
+      "columns": 1
+    },
+    {
       "fieldname": "budget_amount",
       "fieldtype": "Currency",
       "label": "Budget Amount",
       "reqd": 1,
+      "read_only": 1,
       "permlevel": 1,
       "in_list_view": 1,
       "columns": 2
+    },
+    {
+      "fieldname": "net_budget_percent",
+      "fieldtype": "Percent",
+      "label": "Net Budget %",
+      "read_only": 1,
+      "permlevel": 1,
+      "in_list_view": 1,
+      "columns": 1
     },
     {
       "fieldname": "control_action",
