@@ -28,11 +28,13 @@ after_install = [
 	"boq_budget_control.boq_budget.setup.make_custom_fields",
 	"boq_budget_control.boq_budget.setup.make_roles",
 	"boq_budget_control.boq_budget.setup.make_categories",
+	"boq_budget_control.boq_budget.setup.make_workspace",
 ]
 after_migrate = [
 	"boq_budget_control.boq_budget.setup.make_custom_fields",
 	"boq_budget_control.boq_budget.setup.make_roles",
 	"boq_budget_control.boq_budget.setup.make_categories",
+	"boq_budget_control.boq_budget.setup.make_workspace",
 ]
 
 # Document Events
