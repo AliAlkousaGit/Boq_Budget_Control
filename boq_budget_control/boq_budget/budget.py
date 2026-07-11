@@ -101,24 +101,44 @@ def get_available(budget, category):
 # Task 6 — refresh_summary: persist computed columns on every category row
 # ---------------------------------------------------------------------------
 def refresh_summary(budget_name):
-	"""Recompute and persist reserved/actual/available for every category row,
-	plus the parent's ``total_budget_amount``.
+    """Recompute and persist category budget summary values.
 
-	Uses ``db_set`` (not ``save``) so the submitted parent is not re-validated.
-	"""
-	budget_doc = frappe.get_doc("BOQ Project Budget", budget_name)
-	total_budget = 0.0
+    Also calculates each category's actual spending as a percentage
+    of the overall project budget.
+    """
+    budget_doc = frappe.get_doc("BOQ Project Budget", budget_name)
 
-	for row in budget_doc.categories:
-		summary = get_category_summary(budget_name, row.boq_category)
-		row.db_set({
-			"reserved_amount": summary["reserved"],
-			"actual_amount": summary["actual"],
-			"available_amount": summary["available"],
-		})
-		total_budget += flt(row.budget_amount)
+    # Calculate the overall project budget first.
+    total_budget = sum(
+        flt(row.budget_amount)
+        for row in budget_doc.categories
+    )
 
-	budget_doc.db_set("total_budget_amount", total_budget)
+    for row in budget_doc.categories:
+        summary = get_category_summary(
+            budget_name,
+            row.boq_category,
+        )
+
+        # Percentage of the total project budget spent by this category.
+        overall_budget_spent_percentage = (
+            flt(summary["actual"]) / total_budget * 100
+            if total_budget
+            else 0
+        )
+
+        row.db_set({
+            "reserved_amount": summary["reserved"],
+            "actual_amount": summary["actual"],
+            "available_amount": summary["available"],
+            "overall_budget_spent_percentage":
+                overall_budget_spent_percentage,
+        })
+
+    budget_doc.db_set(
+        "total_budget_amount",
+        total_budget,
+    )
 
 
 # ---------------------------------------------------------------------------
