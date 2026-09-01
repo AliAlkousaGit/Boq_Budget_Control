@@ -60,6 +60,117 @@ def make_categories():
 
 
 # ---------------------------------------------------------------------------
+# Workspace — "Accounts" prototype: manager adds plain-text team reminders
+# ---------------------------------------------------------------------------
+ACCOUNTS_WORKSPACE_LABEL = "Accounts"
+
+
+def make_accounts_workspace():
+	"""Create the Accounts workspace (team reminders + accounting shortcuts).
+
+	Idempotent: safe to run from ``after_install`` / ``after_migrate``.
+	"""
+	_accounts_number_cards()
+	_accounts_workspace_doc()
+
+
+def _accounts_number_cards():
+	if frappe.db.exists("Number Card", "Open Reminders"):
+		return
+	frappe.get_doc({
+		"doctype": "Number Card",
+		"label": "Open Reminders",
+		"type": "Document Type",
+		"document_type": "Accounts Reminder",
+		"function": "Count",
+		"filters_json": json.dumps([["Accounts Reminder", "is_done", "=", 0]]),
+		"is_public": 1,
+		"module": BOQ_MODULE,
+	}).insert(ignore_permissions=True)
+
+
+def _accounts_workspace_doc():
+	if frappe.db.exists("Workspace", ACCOUNTS_WORKSPACE_LABEL):
+		return
+
+	ws = frappe.get_doc({
+		"doctype": "Workspace",
+		"label": ACCOUNTS_WORKSPACE_LABEL,
+		"title": ACCOUNTS_WORKSPACE_LABEL,
+		"module": BOQ_MODULE,
+		"icon": "tool",
+		"public": 1,
+		"is_hidden": 0,
+		"sequence_id": 2,
+		"content": json.dumps(_accounts_content()),
+	})
+
+	# Child-table rows MUST mirror the content blocks built in _accounts_content().
+	ws.append("number_cards", {"number_card_name": "Open Reminders", "label": "Open Reminders"})
+	ws.append("quick_lists", {"document_type": "Accounts Reminder", "label": "Team Reminders",
+		"quick_list_filter": json.dumps([["Accounts Reminder", "is_done", "=", 0]])})
+
+	ws.append("shortcuts", {"type": "DocType", "link_to": "Accounts Reminder",
+			"label": "New Reminder", "doc_view": "New", "color": "Blue"})
+	ws.append("shortcuts", {"type": "DocType", "link_to": "Accounts Reminder",
+			"label": "All Reminders", "doc_view": "List", "color": "Blue"})
+	ws.append("shortcuts", {"type": "DocType", "link_to": "Purchase Invoice",
+			"label": "Purchase Invoices", "doc_view": "List", "color": "Grey"})
+	ws.append("shortcuts", {"type": "DocType", "link_to": "Payment Entry",
+			"label": "Payment Entries", "doc_view": "List", "color": "Grey"})
+	ws.append("shortcuts", {"type": "DocType", "link_to": "Journal Entry",
+			"label": "Journal Entries", "doc_view": "List", "color": "Grey"})
+
+	for role in ("Accounts Manager", "Accounting Manager", "Accounts User", "System Manager"):
+		ws.append("roles", {"role": role})
+
+	ws.insert(ignore_permissions=True)
+
+
+def _accounts_content():
+	"""12-column block layout for the Accounts workspace."""
+
+	def bid():
+		return frappe.generate_hash(length=10)
+
+	def header(text):
+		return {"id": bid(), "type": "header",
+				"data": {"text": f'<span class="h4"><b>{text}</b></span>', "col": 12}}
+
+	def spacer():
+		return {"id": bid(), "type": "spacer", "data": {"col": 12}}
+
+	def ncard(name, col):
+		return {"id": bid(), "type": "number_card", "data": {"number_card_name": name, "col": col}}
+
+	def qlist(name, col):
+		return {"id": bid(), "type": "quick_list", "data": {"quick_list_name": name, "col": col}}
+
+	def shortcut(name, col):
+		return {"id": bid(), "type": "shortcut", "data": {"shortcut_name": name, "col": col}}
+
+	def paragraph(text, col):
+		return {"id": bid(), "type": "paragraph", "data": {"text": text, "col": col}}
+
+	return [
+		header("Team Reminders"),
+		ncard("Open Reminders", 3),
+		paragraph(
+			"The Accounts Manager / Accounting Manager adds team reminders and tasks here — "
+			"plain text, optional due date. Team members tick <b>Done</b> when finished.", 9),
+		spacer(),
+		qlist("Team Reminders", 12),
+		spacer(),
+		header("Shortcuts"),
+		shortcut("New Reminder", 2),
+		shortcut("All Reminders", 2),
+		shortcut("Purchase Invoices", 2),
+		shortcut("Payment Entries", 3),
+		shortcut("Journal Entries", 3),
+	]
+
+
+# ---------------------------------------------------------------------------
 # Workspace — "BOQ Budgeting" dashboard
 # ---------------------------------------------------------------------------
 BOQ_WORKSPACE_LABEL = "BOQ Budgeting"
