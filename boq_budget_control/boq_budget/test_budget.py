@@ -11,8 +11,7 @@ class TestBudgetEngine(FrappeTestCase):
         self.budget = frappe.get_doc({
             "doctype": "BOQ Project Budget", "company": "CPC", "project": "PROJ-0001",
             "fiscal_year": _fy(), "budget_date": today(),
-            "categories": [{"boq_category": self.cat,
-                            "budget_amount": 1000, "control_action": "Stop"}],
+            "items": _lines(self.cat, 1000, "Stop"),
         }).insert()
 
     # Task 5
@@ -34,9 +33,9 @@ class TestBudgetEngine(FrappeTestCase):
         _ledger(self.budget, self.cat, "Reserve", 300)
         _ledger(self.budget, self.cat, "Actual", 200)
         refresh_summary(self.budget.name)
-        # summary columns now live on the allocation child row, not the master
-        row = frappe.db.get_value("BOQ Project Budget Category",
-            {"parent": self.budget.name, "boq_category": self.cat},
+        # summary columns live on the Category row of the BOQ table
+        row = frappe.db.get_value("BOQ Budget Item",
+            {"parent": self.budget.name, "boq_category": self.cat, "row_type": "Category"},
             ["reserved_amount", "actual_amount", "available_amount"], as_dict=True)
         self.assertEqual(flt(row["reserved_amount"]), 300)
         self.assertEqual(flt(row["actual_amount"]), 200)
@@ -85,7 +84,7 @@ class TestBudgetEngine(FrappeTestCase):
 
     def test_validate_row_allow_passes(self):
         from boq_budget_control.boq_budget.budget import validate_row
-        self.budget.categories[0].db_set("control_action", "Allow")
+        _category_row(self.budget, self.cat).db_set("control_action", "Allow")
         status, available = validate_row(self.budget.name, self.cat, 999999, throw=True)
         self.assertEqual(status, "ok")
 
@@ -120,3 +119,24 @@ def _ledger(budget, cat, entry_type, amount, **kw):
         "voucher_type": kw.get("voucher_type", "Manual"), "voucher_no": kw.get("voucher_no", "M-001"),
         "voucher_detail_no": kw.get("voucher_detail_no", ""), "entry_type": entry_type, "amount": amount,
     }).insert()
+
+
+def _lines(category, amount, action="Stop", overhead=0):
+    """Two-level BOQ lines: category row 1 + one item row 1.1 worth ``amount``."""
+    return [
+        {"row_type": "Category", "boq_category": category, "control_action": action,
+         "overhead_percentage": overhead},
+        {"row_type": "Item", "item_code": _boq_line_item(), "qty": 1, "rate": amount},
+    ]
+
+
+def _boq_line_item(code="TEST-BOQ-LINE-ITEM"):
+    if not frappe.db.exists("Item", code):
+        frappe.get_doc({"doctype": "Item", "item_code": code, "item_name": code,
+                        "item_group": "All Item Groups", "stock_uom": "Nos",
+                        "is_stock_item": 0, "is_purchase_item": 1}).insert()
+    return code
+
+
+def _category_row(budget, category):
+    return next(r for r in budget.items if r.row_type == "Category" and r.boq_category == category)

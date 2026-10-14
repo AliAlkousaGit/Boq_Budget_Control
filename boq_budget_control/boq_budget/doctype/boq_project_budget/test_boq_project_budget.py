@@ -4,35 +4,24 @@ from frappe.utils import flt, today
 
 
 class TestBOQProjectBudget(FrappeTestCase):
-    def test_total_is_sum_of_categories(self):
-        doc = frappe.get_doc({
-            "doctype": "BOQ Project Budget",
-            "company": "CPC",
-            "project": "PROJ-0001",
-            "fiscal_year": _ensure_fiscal_year(),
-            "budget_date": today(),
-            "categories": [
-                {"boq_category": _cat("PRE", "Preliminaries"), "budget_amount": 1000, "control_action": "Stop"},
-                {"boq_category": _cat("SUB", "Sub Structure"), "budget_amount": 500, "control_action": "Warn"},
-            ],
-        })
-        doc.insert()
-        self.assertEqual(doc.total_budget_amount, 1500)
+    def test_total_is_sum_of_category_budgets(self):
+        doc = _budget([
+            _cat_row(_cat("PRE", "Preliminaries"), "Stop"),
+            _item_row(1, 1000),
+            _cat_row(_cat("SUB", "Sub Structure"), "Warn"),
+            _item_row(2, 250),
+        ]).insert()
+        self.assertEqual(flt(doc.total_budget_amount), 1500)
 
-    def test_submit_locks_amount(self):
-        doc = frappe.get_doc({
-            "doctype": "BOQ Project Budget",
-            "company": "CPC", "project": "PROJ-0001",
-            "fiscal_year": _ensure_fiscal_year(), "budget_date": today(),
-            "categories": [{"boq_category": _cat("PRE", "Preliminaries"), "budget_amount": 1000, "control_action": "Stop"}],
-        })
-        doc.insert(); doc.submit()
+    def test_submit(self):
+        doc = _budget(_lines(_cat("PRE", "Preliminaries"), 1000)).insert()
+        doc.submit()
         self.assertEqual(doc.docstatus, 1)
 
     def test_po_submit_reserves_and_cancel_reverses(self):
         from boq_budget_control.boq_budget.budget import get_available
         budget = _approved_budget_one_cat(1000, "Stop", "ELE", "Electrical Work")
-        cat = budget.categories[0].boq_category
+        cat = "ELE"
         po = _make_po(budget.name, cat, 600)
         po.submit()
         self.assertEqual(flt(get_available(budget.name, cat)), 400)
@@ -44,7 +33,7 @@ class TestBOQProjectBudget(FrappeTestCase):
     def test_pi_direct_consumes_actual(self):
         from boq_budget_control.boq_budget.budget import get_available
         budget = _approved_budget_one_cat(300, "Stop", "PLB", "Plumbing Work")
-        cat = budget.categories[0].boq_category
+        cat = "PLB"
         pi = _make_pi(budget.name, cat, 120)
         pi.submit()
         self.assertEqual(flt(get_available(budget.name, cat)), 180)
@@ -54,7 +43,7 @@ class TestBOQProjectBudget(FrappeTestCase):
     def test_pi_linked_to_po_releases_and_actuals(self):
         from boq_budget_control.boq_budget.budget import get_category_summary
         budget = _approved_budget_one_cat(1000, "Stop", "BLK", "Block Work")
-        cat = budget.categories[0].boq_category
+        cat = "BLK"
         po = _make_po(budget.name, cat, 500)
         po.submit()  # reserved 500
         self.assertEqual(flt(get_category_summary(budget.name, cat)["reserved"]), 500)
@@ -63,6 +52,126 @@ class TestBOQProjectBudget(FrappeTestCase):
         s = get_category_summary(budget.name, cat)
         self.assertEqual(flt(s["reserved"]), 0)
         self.assertEqual(flt(s["actual"]), 500)
+
+
+class TestBOQLines(FrappeTestCase):
+    """Single two-level BOQ table: numbers are generated, never typed."""
+
+    def test_rollup_overhead_numbering(self):
+        lam, pan = _cat("LAM", "Laminates"), _cat("PAN", "Panels/mdf/lipping")
+        doc = _budget([
+            _cat_row(lam, "Stop", overhead=10),
+            _item_row(100, 29.51, _boq_line_item("TEST-LAM-A"), category=lam),
+            _item_row(100, 9.03, _boq_line_item("TEST-LAM-B"), category=lam),
+            _cat_row(pan, "Warn"),
+            _item_row(310, 150, category=pan),
+        ]).insert()
+        rows = {r.line_no: r for r in doc.items}
+        self.assertEqual([r.line_no for r in doc.items], ["1", "1.1", "1.2", "2", "2.1"])
+        lam_amount = flt(100 * 29.51 + 100 * 9.03)
+        self.assertEqual(rows["1"].row_type, "Category")
+        self.assertEqual(rows["1.1"].row_type, "Item")
+        self.assertEqual(flt(rows["1"].amount), lam_amount)
+        self.assertEqual(flt(rows["1"].budget_amount), flt(lam_amount * 0.9))
+        self.assertEqual(flt(rows["1"].net_budget_percent), 90)
+        self.assertEqual(flt(rows["2"].budget_amount), flt(310 * 150))
+        self.assertEqual(rows["1"].description, "Laminates")
+        self.assertEqual(rows["1.1"].uom, "Nos")
+        self.assertEqual(flt(doc.total_budget_amount), flt(lam_amount * 0.9 + 310 * 150))
+
+    def test_item_added_later_moves_under_its_category(self):
+        lam, pan = _cat("LAM", "Laminates"), _cat("PAN", "Panels/mdf/lipping")
+        doc = _budget([
+            _cat_row(lam), _item_row(1, 5, category=lam),
+            _cat_row(pan), _item_row(1, 5, category=pan),
+            _item_row(2, 5, _boq_line_item("TEST-LAM-B"), category=lam),  # added last, belongs to 1
+        ]).insert()
+        self.assertEqual([(r.line_no, r.boq_category, r.item_code) for r in doc.items], [
+            ("1", lam, None), ("1.1", lam, "TEST-BOQ-LINE-ITEM"), ("1.2", lam, "TEST-LAM-B"),
+            ("2", pan, None), ("2.1", pan, "TEST-BOQ-LINE-ITEM"),
+        ])
+
+    def test_typed_line_no_is_ignored(self):
+        lam = _cat("LAM", "Laminates")
+        doc = _budget([dict(_cat_row(lam), line_no="7"), dict(_item_row(1, 5), line_no="9.9")]).insert()
+        self.assertEqual([r.line_no for r in doc.items], ["1", "1.1"])
+
+    def test_item_without_category_link_falls_under_category_above(self):
+        lam = _cat("LAM", "Laminates")
+        doc = _budget([_cat_row(lam), _item_row(1, 5)]).insert()
+        self.assertEqual(doc.items[1].boq_category, lam)
+
+    def test_item_before_any_category_rejected(self):
+        doc = _budget([_item_row(1, 5), _cat_row(_cat("LAM", "Laminates"))])
+        self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_item_of_missing_category_rejected(self):
+        doc = _budget([_cat_row(_cat("LAM", "Laminates")),
+                       _item_row(1, 5, category=_cat("PAN", "Panels/mdf/lipping"))])
+        self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_item_code_required(self):
+        doc = _budget([_cat_row(_cat("LAM", "Laminates")), {"row_type": "Item", "qty": 1, "rate": 5}])
+        self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_qty_must_be_positive(self):
+        doc = _budget([_cat_row(_cat("LAM", "Laminates")), _item_row(0, 5)])
+        self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_category_required_on_category_row(self):
+        doc = _budget([{"row_type": "Category"}, _item_row(1, 5)])
+        self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_duplicate_category_rejected(self):
+        lam = _cat("LAM", "Laminates")
+        doc = _budget([_cat_row(lam), _item_row(1, 5), _cat_row(lam), _item_row(1, 5)])
+        self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_same_item_twice_in_category_rejected(self):
+        doc = _budget([_cat_row(_cat("LAM", "Laminates")), _item_row(1, 5), _item_row(2, 5)])
+        self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_same_item_in_two_categories_allowed(self):
+        doc = _budget([_cat_row(_cat("LAM", "Laminates")), _item_row(1, 5),
+                       _cat_row(_cat("PAN", "Panels/mdf/lipping")), _item_row(1, 5)]).insert()
+        self.assertEqual(len(doc.items), 4)
+
+    def test_category_without_items_has_zero_budget(self):
+        doc = _budget([_cat_row(_cat("LAM", "Laminates"))]).insert()
+        self.assertEqual(flt(doc.items[0].budget_amount), 0)
+
+
+def _budget(items):
+    return frappe.get_doc({
+        "doctype": "BOQ Project Budget",
+        "company": "CPC", "project": "PROJ-0001",
+        "fiscal_year": _ensure_fiscal_year(), "budget_date": today(),
+        "items": items,
+    })
+
+
+def _cat_row(category, action="Stop", overhead=0):
+    return {"row_type": "Category", "boq_category": category,
+            "control_action": action, "overhead_percentage": overhead}
+
+
+def _item_row(qty, rate, item_code=None, category=None):
+    row = {"row_type": "Item", "item_code": item_code or _boq_line_item(), "qty": qty, "rate": rate}
+    if category:
+        row["boq_category"] = category
+    return row
+
+
+def _lines(category, amount, action="Stop", overhead=0):
+    return [_cat_row(category, action, overhead), _item_row(1, amount)]
+
+
+def _boq_line_item(code="TEST-BOQ-LINE-ITEM"):
+    if not frappe.db.exists("Item", code):
+        frappe.get_doc({"doctype": "Item", "item_code": code, "item_name": code,
+                        "item_group": "All Item Groups", "stock_uom": "Nos",
+                        "is_stock_item": 0, "is_purchase_item": 1}).insert()
+    return code
 
 
 def _ensure_fiscal_year():
@@ -87,8 +196,7 @@ def _approved_budget_one_cat(amount, action, code="PRE", name="Preliminaries"):
     b = frappe.get_doc({
         "doctype": "BOQ Project Budget", "company": "CPC", "project": "PROJ-0001",
         "fiscal_year": _ensure_fiscal_year(), "budget_date": today(),
-        "categories": [{"boq_category": _cat(code, name),
-                        "budget_amount": amount, "control_action": action}],
+        "items": _lines(_cat(code, name), amount, action),
     }).insert()
     b.submit()
     return b

@@ -1,0 +1,216 @@
+{
+ "actions": [],
+ "creation": "2026-10-14 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "line_no",
+  "row_type",
+  "boq_category",
+  "add_item",
+  "item_code",
+  "description",
+  "column_break_1",
+  "uom",
+  "qty",
+  "rate",
+  "amount",
+  "category_budget_section",
+  "overhead_percentage",
+  "budget_amount",
+  "net_budget_percent",
+  "control_action",
+  "column_break_2",
+  "reserved_amount",
+  "actual_amount",
+  "available_amount",
+  "overall_budget_spent_percentage",
+  "remarks_section",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "description": "Generated automatically",
+   "fieldname": "line_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "No.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "row_type",
+   "fieldtype": "Select",
+   "label": "Row Type",
+   "options": "Category\nItem",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "boq_category",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "BOQ Category",
+   "mandatory_depends_on": "eval:doc.row_type=='Category'",
+   "options": "BOQ Budget Category",
+   "read_only_depends_on": "eval:doc.row_type=='Item'"
+  },
+  {
+   "columns": 1,
+   "depends_on": "eval:doc.row_type=='Category' && doc.docstatus==0",
+   "fieldname": "add_item",
+   "fieldtype": "Button",
+   "in_list_view": 1,
+   "label": "+ Add Item"
+  },
+  {
+   "columns": 2,
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "mandatory_depends_on": "eval:doc.row_type=='Item'",
+   "options": "Item",
+   "read_only_depends_on": "eval:doc.row_type=='Category'"
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fetch_if_empty": 1,
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.row_type!='Category'",
+   "fetch_from": "item_code.stock_uom",
+   "fetch_if_empty": 1,
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "UOM",
+   "options": "UOM"
+  },
+  {
+   "columns": 1,
+   "depends_on": "eval:doc.row_type!='Category'",
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Qty",
+   "precision": "3"
+  },
+  {
+   "columns": 1,
+   "depends_on": "eval:doc.row_type!='Category'",
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Rate",
+   "options": "company:currency"
+  },
+  {
+   "columns": 2,
+   "description": "Item row: Qty × Rate. Category row: sum of its items.",
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "options": "company:currency",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.row_type=='Category'",
+   "fieldname": "category_budget_section",
+   "fieldtype": "Section Break",
+   "label": "Category Budget"
+  },
+  {
+   "fieldname": "overhead_percentage",
+   "fieldtype": "Percent",
+   "label": "Overhead %",
+   "permlevel": 1
+  },
+  {
+   "description": "Amount − Overhead %",
+   "fieldname": "budget_amount",
+   "fieldtype": "Currency",
+   "label": "Budget Amount",
+   "options": "company:currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "net_budget_percent",
+   "fieldtype": "Percent",
+   "label": "Net Budget %",
+   "read_only": 1
+  },
+  {
+   "default": "Stop",
+   "fieldname": "control_action",
+   "fieldtype": "Select",
+   "label": "Control Action",
+   "options": "Stop\nWarn\nAllow"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reserved_amount",
+   "fieldtype": "Currency",
+   "label": "Reserved",
+   "options": "company:currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "actual_amount",
+   "fieldtype": "Currency",
+   "label": "Actual",
+   "options": "company:currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "available_amount",
+   "fieldtype": "Currency",
+   "label": "Available",
+   "options": "company:currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "overall_budget_spent_percentage",
+   "fieldtype": "Percent",
+   "label": "Overall Budget Spent %",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "remarks_section",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-14 17:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "BOQ Budget",
+ "name": "BOQ Budget Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

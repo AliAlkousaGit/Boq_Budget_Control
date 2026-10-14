@@ -4,5 +4,5 @@
 from frappe.model.document import Document
 
 
-class BOQProjectBudgetCategory(Document):
+class BOQBudgetItem(Document):
 	pass

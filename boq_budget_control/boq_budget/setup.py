@@ -66,11 +66,16 @@ ACCOUNTS_WORKSPACE_LABEL = "Accounts"
 
 
 def make_accounts_workspace():
-	"""Create the Accounts workspace (team reminders + accounting shortcuts).
+	"""Create/refresh the Accounts workspace (reminder board + shortcuts).
 
 	Idempotent: safe to run from ``after_install`` / ``after_migrate``.
+	Content is re-applied on every migrate so code changes to the board
+	reach existing sites.
 	"""
+	from boq_budget_control.boq_budget.accounts_reminder_block import make_custom_block
+
 	_accounts_number_cards()
+	make_custom_block()
 	_accounts_workspace_doc()
 
 
@@ -90,25 +95,31 @@ def _accounts_number_cards():
 
 
 def _accounts_workspace_doc():
-	if frappe.db.exists("Workspace", ACCOUNTS_WORKSPACE_LABEL):
-		return
+	from boq_budget_control.boq_budget.accounts_reminder_block import REMINDER_BLOCK_NAME
 
-	ws = frappe.get_doc({
-		"doctype": "Workspace",
-		"label": ACCOUNTS_WORKSPACE_LABEL,
-		"title": ACCOUNTS_WORKSPACE_LABEL,
-		"module": BOQ_MODULE,
-		"icon": "tool",
-		"public": 1,
-		"is_hidden": 0,
-		"sequence_id": 2,
-		"content": json.dumps(_accounts_content()),
-	})
+	exists = frappe.db.exists("Workspace", ACCOUNTS_WORKSPACE_LABEL)
+	if exists:
+		ws = frappe.get_doc("Workspace", ACCOUNTS_WORKSPACE_LABEL)
+	else:
+		ws = frappe.get_doc({
+			"doctype": "Workspace",
+			"label": ACCOUNTS_WORKSPACE_LABEL,
+			"title": ACCOUNTS_WORKSPACE_LABEL,
+			"module": BOQ_MODULE,
+			"icon": "tool",
+			"public": 1,
+			"is_hidden": 0,
+			"sequence_id": 2,
+		})
+
+	ws.content = json.dumps(_accounts_content())
 
 	# Child-table rows MUST mirror the content blocks built in _accounts_content().
+	for fieldname in ("number_cards", "quick_lists", "shortcuts", "custom_blocks", "roles"):
+		ws.set(fieldname, [])
+
 	ws.append("number_cards", {"number_card_name": "Open Reminders", "label": "Open Reminders"})
-	ws.append("quick_lists", {"document_type": "Accounts Reminder", "label": "Team Reminders",
-		"quick_list_filter": json.dumps([["Accounts Reminder", "is_done", "=", 0]])})
+	ws.append("custom_blocks", {"custom_block_name": REMINDER_BLOCK_NAME, "label": REMINDER_BLOCK_NAME})
 
 	ws.append("shortcuts", {"type": "DocType", "link_to": "Accounts Reminder",
 			"label": "New Reminder", "doc_view": "New", "color": "Blue"})
@@ -124,7 +135,10 @@ def _accounts_workspace_doc():
 	for role in ("Accounts Manager", "Accounting Manager", "Accounts User", "System Manager"):
 		ws.append("roles", {"role": role})
 
-	ws.insert(ignore_permissions=True)
+	if exists:
+		ws.save(ignore_permissions=True)
+	else:
+		ws.insert(ignore_permissions=True)
 
 
 def _accounts_content():
@@ -143,8 +157,8 @@ def _accounts_content():
 	def ncard(name, col):
 		return {"id": bid(), "type": "number_card", "data": {"number_card_name": name, "col": col}}
 
-	def qlist(name, col):
-		return {"id": bid(), "type": "quick_list", "data": {"quick_list_name": name, "col": col}}
+	def cblock(name, col):
+		return {"id": bid(), "type": "custom_block", "data": {"custom_block_name": name, "col": col}}
 
 	def shortcut(name, col):
 		return {"id": bid(), "type": "shortcut", "data": {"shortcut_name": name, "col": col}}
@@ -159,7 +173,7 @@ def _accounts_content():
 			"The Accounts Manager / Accounting Manager adds team reminders and tasks here — "
 			"plain text, optional due date. Team members tick <b>Done</b> when finished.", 9),
 		spacer(),
-		qlist("Team Reminders", 12),
+		cblock("Accounts Team Reminders", 12),
 		spacer(),
 		header("Shortcuts"),
 		shortcut("New Reminder", 2),
@@ -175,6 +189,9 @@ def _accounts_content():
 # ---------------------------------------------------------------------------
 BOQ_WORKSPACE_LABEL = "BOQ Budgeting"
 BOQ_MODULE = "BOQ Budget"
+
+# Budget allocations live on the Category rows (No. 1, 2 …) of BOQ Budget Item.
+CATEGORY_ROWS = [["BOQ Budget Item", "row_type", "=", "Category"]]
 
 
 def make_workspace():
@@ -194,12 +211,12 @@ def _boq_number_cards():
     cards = [
         ("Total Budgeted", "BOQ Project Budget", "Sum", "total_budget_amount",
          [["BOQ Project Budget", "docstatus", "=", 1]], None),
-        ("Total Reserved", "BOQ Project Budget Category", "Sum", "reserved_amount",
-         [], "BOQ Project Budget"),
-        ("Total Actual", "BOQ Project Budget Category", "Sum", "actual_amount",
-         [], "BOQ Project Budget"),
-        ("Available", "BOQ Project Budget Category", "Sum", "available_amount",
-         [], "BOQ Project Budget"),
+        ("Total Reserved", "BOQ Budget Item", "Sum", "reserved_amount",
+         CATEGORY_ROWS, "BOQ Project Budget"),
+        ("Total Actual", "BOQ Budget Item", "Sum", "actual_amount",
+         CATEGORY_ROWS, "BOQ Project Budget"),
+        ("Available", "BOQ Budget Item", "Sum", "available_amount",
+         CATEGORY_ROWS, "BOQ Project Budget"),
         ("Active Budgets", "BOQ Project Budget", "Count", None,
          [["BOQ Project Budget", "docstatus", "=", 1],
           ["BOQ Project Budget", "is_closed", "=", 0]], None),
@@ -231,13 +248,13 @@ def _boq_charts():
             "doctype": "Dashboard Chart",
             "chart_name": "Budget by Category",
             "chart_type": "Group By",
-            "document_type": "BOQ Project Budget Category",
+            "document_type": "BOQ Budget Item",
             "parent_document_type": "BOQ Project Budget",
             "group_by_based_on": "boq_category",
             "group_by_type": "Sum",
             "aggregate_function_based_on": "budget_amount",
             "type": "Donut",
-            "filters_json": "[]",
+            "filters_json": json.dumps(CATEGORY_ROWS),
             "is_public": 1,
             "module": BOQ_MODULE,
         }).insert(ignore_permissions=True)

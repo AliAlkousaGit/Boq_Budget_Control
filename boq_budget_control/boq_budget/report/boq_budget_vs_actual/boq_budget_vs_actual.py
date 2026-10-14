@@ -56,9 +56,10 @@ def get_data(filters):
     out = []
     for b in budgets:
         allocs = frappe.db.get_all(
-            "BOQ Project Budget Category",
-            filters={"parent": b.name, "parenttype": "BOQ Project Budget"},
-            fields=["boq_category", "category_name", "budget_amount", "control_action"],
+            "BOQ Budget Item",
+            filters={"parent": b.name, "parenttype": "BOQ Project Budget", "row_type": "Category"},
+            fields=["boq_category", "description", "budget_amount", "control_action"],
+            order_by="idx asc",
         )
         for a in allocs:
             s = get_category_summary(b.name, a.boq_category)
@@ -69,7 +70,7 @@ def get_data(filters):
                 "project": b.project,
                 "boq_project_budget": b.name,
                 "boq_category": a.boq_category,
-                "category_name": a.category_name,
+                "category_name": a.description,
                 "budget_amount": s["budget_amount"],
                 "reserved": s["reserved"],
                 "actual": s["actual"],

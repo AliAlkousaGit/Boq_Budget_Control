@@ -20,7 +20,8 @@ function in this module is a pure reader.
 
 Category model: a "category" is identified by the master ``BOQ Budget Category`` name.
 Its per-budget allocation (``budget_amount`` / ``control_action``) lives on the
-``BOQ Project Budget Category`` child row of the owning ``BOQ Project Budget``.
+Category row (``row_type = "Category"``, No. 1, 2 …) of the ``BOQ Budget Item``
+table of the owning ``BOQ Project Budget``.
 """
 
 import frappe
@@ -47,8 +48,13 @@ def _allocation(budget, category):
 	"""Return ``{budget_amount, control_action}`` for a category's allocation row
 	within a budget, or ``None`` when the budget does not allocate that category."""
 	return frappe.db.get_value(
-		"BOQ Project Budget Category",
-		{"parent": budget, "parenttype": "BOQ Project Budget", "boq_category": category},
+		"BOQ Budget Item",
+		{
+			"parent": budget,
+			"parenttype": "BOQ Project Budget",
+			"row_type": "Category",
+			"boq_category": category,
+		},
 		["budget_amount", "control_action"],
 		as_dict=True,
 	)
@@ -101,44 +107,26 @@ def get_available(budget, category):
 # Task 6 — refresh_summary: persist computed columns on every category row
 # ---------------------------------------------------------------------------
 def refresh_summary(budget_name):
-    """Recompute and persist category budget summary values.
+	"""Recompute and persist the summary columns on every Category row.
 
-    Also calculates each category's actual spending as a percentage
-    of the overall project budget.
-    """
-    budget_doc = frappe.get_doc("BOQ Project Budget", budget_name)
+	``overall_budget_spent_percentage`` = category actual / total project budget.
+	"""
+	budget_doc = frappe.get_doc("BOQ Project Budget", budget_name)
+	category_rows = [r for r in budget_doc.items if r.row_type == "Category"]
 
-    # Calculate the overall project budget first.
-    total_budget = sum(
-        flt(row.budget_amount)
-        for row in budget_doc.categories
-    )
+	total_budget = sum(flt(r.budget_amount) for r in category_rows)
 
-    for row in budget_doc.categories:
-        summary = get_category_summary(
-            budget_name,
-            row.boq_category,
-        )
+	for row in category_rows:
+		summary = get_category_summary(budget_name, row.boq_category)
+		spent_pct = flt(summary["actual"]) / total_budget * 100 if total_budget else 0
+		row.db_set({
+			"reserved_amount": summary["reserved"],
+			"actual_amount": summary["actual"],
+			"available_amount": summary["available"],
+			"overall_budget_spent_percentage": spent_pct,
+		})
 
-        # Percentage of the total project budget spent by this category.
-        overall_budget_spent_percentage = (
-            flt(summary["actual"]) / total_budget * 100
-            if total_budget
-            else 0
-        )
-
-        row.db_set({
-            "reserved_amount": summary["reserved"],
-            "actual_amount": summary["actual"],
-            "available_amount": summary["available"],
-            "overall_budget_spent_percentage":
-                overall_budget_spent_percentage,
-        })
-
-    budget_doc.db_set(
-        "total_budget_amount",
-        total_budget,
-    )
+	budget_doc.db_set("total_budget_amount", total_budget)
 
 
 # ---------------------------------------------------------------------------

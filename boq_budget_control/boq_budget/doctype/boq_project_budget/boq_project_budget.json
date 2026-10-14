@@ -4,36 +4,157 @@
   "creation": "2026-07-03 10:00:00",
   "doctype": "DocType",
   "engine": "InnoDB",
-  "field_order": ["company", "project", "customer", "column_break_1", "fiscal_year", "budget_date", "budget_reference", "is_closed", "section_break_cat", "total_budget_amount", "categories", "remarks_section", "remarks"],
+  "field_order": [
+    "company",
+    "project",
+    "customer",
+    "column_break_1",
+    "fiscal_year",
+    "budget_date",
+    "budget_reference",
+    "is_closed",
+    "section_break_items",
+    "items",
+    "total_budget_amount",
+    "category_summary_html",
+    "remarks_section",
+    "remarks"
+  ],
   "fields": [
-    {"fieldname": "company", "fieldtype": "Link", "label": "Company", "options": "Company", "reqd": 1},
-    {"fieldname": "project", "fieldtype": "Link", "label": "Project", "options": "Project", "reqd": 1},
-    {"fieldname": "customer", "fieldtype": "Link", "label": "Customer", "options": "Customer"},
-    {"fieldname": "column_break_1", "fieldtype": "Column Break"},
-    {"fieldname": "fiscal_year", "fieldtype": "Link", "label": "Fiscal Year", "options": "Fiscal Year", "reqd": 1},
-    {"fieldname": "budget_date", "fieldtype": "Date", "label": "Budget Date", "reqd": 1},
-    {"fieldname": "budget_reference", "fieldtype": "Data", "label": "Budget Reference"},
-    {"fieldname": "is_closed", "fieldtype": "Check", "label": "Closed (freeze new reservations)", "default": 0},
-    {"fieldname": "section_break_cat", "fieldtype": "Section Break", "label": "Categories"},
-    {"fieldname": "total_budget_amount", "fieldtype": "Currency", "label": "Total Budget Amount", "read_only": 1},
-    {"fieldname": "categories", "fieldtype": "Table", "label": "Categories", "options": "BOQ Project Budget Category", "reqd": 1},
-    {"fieldname": "remarks_section", "fieldtype": "Section Break", "label": "Remarks"},
-    {"fieldname": "remarks", "fieldtype": "Small Text", "label": "Remarks"}
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "label": "Company",
+      "options": "Company",
+      "reqd": 1
+    },
+    {
+      "fieldname": "project",
+      "fieldtype": "Link",
+      "label": "Project",
+      "options": "Project",
+      "reqd": 1
+    },
+    {
+      "fieldname": "customer",
+      "fieldtype": "Link",
+      "label": "Customer",
+      "options": "Customer"
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "fiscal_year",
+      "fieldtype": "Link",
+      "label": "Fiscal Year",
+      "options": "Fiscal Year",
+      "reqd": 1
+    },
+    {
+      "fieldname": "budget_date",
+      "fieldtype": "Date",
+      "label": "Budget Date",
+      "reqd": 1
+    },
+    {
+      "fieldname": "budget_reference",
+      "fieldtype": "Data",
+      "label": "Budget Reference"
+    },
+    {
+      "fieldname": "is_closed",
+      "fieldtype": "Check",
+      "label": "Closed (freeze new reservations)",
+      "default": 0
+    },
+    {
+      "fieldname": "section_break_items",
+      "fieldtype": "Section Break",
+      "label": "BOQ"
+    },
+    {
+      "fieldname": "items",
+      "fieldtype": "Table",
+      "label": "BOQ Lines",
+      "options": "BOQ Budget Item",
+      "reqd": 1,
+      "description": "Use 'Add Category' for a new category and the '+ Add Item' button on a category row for its items. Numbers are generated automatically."
+    },
+    {
+      "fieldname": "total_budget_amount",
+      "fieldtype": "Currency",
+      "label": "Total Budget Amount",
+      "read_only": 1,
+      "options": "company:currency"
+    },
+    {
+      "fieldname": "remarks_section",
+      "fieldtype": "Section Break",
+      "label": "Remarks"
+    },
+    {
+      "fieldname": "remarks",
+      "fieldtype": "Small Text",
+      "label": "Remarks"
+    },
+    {
+      "fieldname": "category_summary_html",
+      "fieldtype": "HTML",
+      "label": "Category Summary"
+    }
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-07-04 05:00:00",
+  "modified": "2026-10-14 17:00:00.000000",
   "modified_by": "Administrator",
   "module": "BOQ Budget",
   "name": "BOQ Project Budget",
   "owner": "Administrator",
   "permissions": [
-    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "submit": 1, "cancel": 1, "amend": 1, "report": 1},
-    {"role": "BOQ Manager", "read": 1, "write": 1, "create": 1, "submit": 1, "cancel": 1, "amend": 1, "report": 1, "permlevel": 1},
-    {"role": "Purchase Manager", "read": 1, "report": 1},
-    {"role": "Purchase User", "read": 1, "report": 1},
-    {"role": "Accounts Manager", "read": 1, "report": 1},
-    {"role": "Projects Manager", "read": 1, "report": 1}
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "submit": 1,
+      "cancel": 1,
+      "amend": 1,
+      "report": 1
+    },
+    {
+      "role": "BOQ Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "submit": 1,
+      "cancel": 1,
+      "amend": 1,
+      "report": 1,
+      "permlevel": 1
+    },
+    {
+      "role": "Purchase Manager",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Purchase User",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Accounts Manager",
+      "read": 1,
+      "report": 1
+    },
+    {
+      "role": "Projects Manager",
+      "read": 1,
+      "report": 1
+    }
   ],
   "sort_field": "modified",
   "sort_order": "DESC",

@@ -30,8 +30,7 @@ class TestProjectBudgetTrigger(FrappeTestCase):
         self.budget = frappe.get_doc({
             "doctype": "BOQ Project Budget", "company": self.company, "project": self.project,
             "fiscal_year": self.fy, "budget_date": today(),
-            "categories": [{"boq_category": self.cat,
-                            "budget_amount": 1000, "control_action": "Stop"}],
+            "items": _lines(self.cat, 1000, "Stop"),
         }).insert()
         self.budget.submit()  # docstatus=1 -> "Approved"
 
@@ -48,8 +47,7 @@ class TestProjectBudgetTrigger(FrappeTestCase):
         frappe.get_doc({
             "doctype": "BOQ Project Budget", "company": self.company,
             "project": self.no_budget_project, "fiscal_year": self.fy, "budget_date": today(),
-            "categories": [{"boq_category": self.cat,
-                            "budget_amount": 500, "control_action": "Stop"}],
+            "items": _lines(self.cat, 500, "Stop"),
         }).insert()
         self.assertFalse(project_has_budget(self.no_budget_project))
 
@@ -158,3 +156,24 @@ def _cat(code, name):
         frappe.get_doc({"doctype": "BOQ Budget Category",
                         "category_code": code, "category_name": name}).insert()
     return code
+
+
+def _lines(category, amount, action="Stop", overhead=0):
+    """Two-level BOQ lines: category row 1 + one item row 1.1 worth ``amount``."""
+    return [
+        {"row_type": "Category", "boq_category": category, "control_action": action,
+         "overhead_percentage": overhead},
+        {"row_type": "Item", "item_code": _boq_line_item(), "qty": 1, "rate": amount},
+    ]
+
+
+def _boq_line_item(code="TEST-BOQ-LINE-ITEM"):
+    if not frappe.db.exists("Item", code):
+        frappe.get_doc({"doctype": "Item", "item_code": code, "item_name": code,
+                        "item_group": "All Item Groups", "stock_uom": "Nos",
+                        "is_stock_item": 0, "is_purchase_item": 1}).insert()
+    return code
+
+
+def _category_row(budget, category):
+    return next(r for r in budget.items if r.row_type == "Category" and r.boq_category == category)
