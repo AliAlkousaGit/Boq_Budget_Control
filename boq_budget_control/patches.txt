@@ -5,4 +5,5 @@ boq_budget_control.patches.backup_old_category_table
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+boq_budget_control.patches.copy_old_categories_to_boq_lines
 boq_budget_control.patches.single_boq_hierarchy_table
