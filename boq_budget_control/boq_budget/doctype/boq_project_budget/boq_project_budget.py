@@ -4,7 +4,7 @@
 
     No.   Row type   User enters                           Calculated
     1     Category   BOQ Category, Overhead %, Control     amount = Σ its items
-    1.1   Item       Item, Qty, Rate                       amount = qty × rate
+    1.1   Item       Item (optional) or Description, Qty, Rate   amount = qty × rate
     1.2   Item
     2     Category
     2.1   Item
@@ -82,8 +82,10 @@ class BOQProjectBudget(Document):
 				category = current
 			if not category:
 				frappe.throw(
-					_("Row {0}: Item {1} is not under any Category. Add it with the "
-					  "'+ Add Item' button of a category.").format(row.idx, frappe.bold(row.item_code or ""))
+					_("Row {0}: line {1} is not under any Category. Add it with the "
+					  "'+ Add Item' button of a category.").format(
+						row.idx, frappe.bold(row.item_code or row.description or "")
+					)
 				)
 			by_category[category]["items"].append(row)
 
@@ -101,14 +103,15 @@ class BOQProjectBudget(Document):
 				item.line_no = f"{c_no}.{i_no}"
 				item.boq_category = category
 				self._prepare_item(item)
-				if item.item_code in seen_items:
+				if item.item_code and item.item_code in seen_items:
 					frappe.throw(
 						_("Item {0} is listed twice under {1} (No. {2} and {3}).").format(
 							frappe.bold(item.item_code), frappe.bold(cat_row.description or category),
 							seen_items[item.item_code], item.line_no,
 						)
 					)
-				seen_items[item.item_code] = item.line_no
+				if item.item_code:
+					seen_items[item.item_code] = item.line_no
 				ordered.append(item)
 
 			self._calculate_category(cat_row, group["items"])
@@ -124,8 +127,9 @@ class BOQProjectBudget(Document):
 		row.control_action = row.control_action or "Stop"
 
 	def _prepare_item(self, row):
-		if not row.item_code:
-			frappe.throw(_("No. {0}: select the Item.").format(row.line_no))
+		row.description = (row.description or "").strip() or None
+		if not row.item_code and not row.description:
+			frappe.throw(_("No. {0}: select an Item or enter a Description.").format(row.line_no))
 		if flt(row.qty) <= 0:
 			frappe.throw(_("No. {0}: Qty must be greater than 0.").format(row.line_no))
 		if flt(row.rate) < 0:
@@ -135,7 +139,7 @@ class BOQProjectBudget(Document):
 			row.set(f, None)
 		row.control_action = None
 
-		if not row.description or not row.uom:
+		if row.item_code and (not row.description or not row.uom):
 			item = frappe.db.get_value("Item", row.item_code, ["item_name", "stock_uom"], as_dict=True) or {}
 			row.description = row.description or item.get("item_name")
 			row.uom = row.uom or item.get("stock_uom")

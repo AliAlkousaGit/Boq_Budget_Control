@@ -110,9 +110,17 @@ class TestBOQLines(FrappeTestCase):
                        _item_row(1, 5, category=_cat("PAN", "Panels/mdf/lipping"))])
         self.assertRaises(frappe.ValidationError, doc.insert)
 
-    def test_item_code_required(self):
+    def test_item_or_description_required(self):
         doc = _budget([_cat_row(_cat("LAM", "Laminates")), {"row_type": "Item", "qty": 1, "rate": 5}])
         self.assertRaises(frappe.ValidationError, doc.insert)
+
+    def test_free_text_line_without_item(self):
+        doc = _budget([_cat_row(_cat("LAM", "Laminates")),
+                       {"row_type": "Item", "description": "Lump sum subcontract", "uom": "Nos",
+                        "qty": 1, "rate": 5000},
+                       {"row_type": "Item", "description": "Second free line", "qty": 2, "rate": 10}]).insert()
+        self.assertEqual(doc.items[1].item_code, None)
+        self.assertEqual(flt(doc.items[0].budget_amount), 5020)
 
     def test_qty_must_be_positive(self):
         doc = _budget([_cat_row(_cat("LAM", "Laminates")), _item_row(0, 5)])
