@@ -7,6 +7,7 @@
  "field_order": [
   "line_no",
   "row_type",
+  "boq_ref",
   "boq_category",
   "add_item",
   "item_code",
@@ -46,6 +47,14 @@
    "options": "Category\nItem",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "boq_ref",
+   "fieldtype": "Data",
+   "label": "BOQ Ref",
+   "read_only": 1,
+   "no_copy": 0,
+   "description": "Original S.No from the imported client BOQ"
   },
   {
    "columns": 1,
@@ -207,7 +216,7 @@
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-10-15 17:40:00.000000",
+ "modified": "2026-10-15 19:30:00.000000",
  "modified_by": "Administrator",
  "module": "BOQ Budget",
  "name": "BOQ Budget Item",

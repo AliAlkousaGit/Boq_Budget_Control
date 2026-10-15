@@ -20,6 +20,9 @@ frappe.ui.form.on("BOQ Project Budget", {
 	refresh(frm) {
 		frm.set_df_property("items", "cannot_add_rows", 1);
 		boq_add_category_button(frm);
+		if (frm.doc.docstatus === 0) {
+			frm.add_custom_button(__("Import BOQ"), () => boq_import_dialog(frm));
+		}
 		boq_renumber(frm, false);
 	},
 	items_on_form_rendered(frm) {
@@ -271,4 +274,178 @@ function boq_render_summary(frm) {
 			'<table class="table table-bordered table-sm" style="font-size: 12px">' +
 			"<thead>" + head + "</thead><tbody>" + body + "</tbody></table>"
 	);
+}
+
+// ---------------------------------------------------------------------------
+// Import BOQ (Excel): upload -> server preview -> Apply fills the table (unsaved)
+// Parsing / matching rules live in boq_budget/boq_import.py.
+// ---------------------------------------------------------------------------
+function boq_import_dialog(frm) {
+	const d = new frappe.ui.Dialog({
+		title: __("Import BOQ (Excel)"),
+		fields: [
+			{
+				fieldname: "file",
+				fieldtype: "Attach",
+				label: __("BOQ file (.xlsx)"),
+				reqd: 1,
+				options: { restrictions: { allowed_file_types: [".xlsx"] } },
+			},
+			{ fieldname: "sheet", fieldtype: "Select", label: __("Sheet"), hidden: 1 },
+		],
+		primary_action_label: __("Preview"),
+		primary_action(values) {
+			frappe
+				.call({
+					method: "boq_budget_control.boq_budget.api.preview_boq_import",
+					args: { file_url: values.file, budget: frm.is_new() ? null : frm.doc.name, sheet: values.sheet || null },
+					freeze: true,
+					freeze_message: __("Reading BOQ…"),
+				})
+				.then((r) => {
+					const p = r.message || {};
+					if (p.needs_sheet) {
+						d.set_df_property("sheet", "options", p.sheets);
+						d.set_df_property("sheet", "hidden", 0);
+						d.set_df_property("sheet", "reqd", 1);
+						frappe.show_alert({ message: __("This file has several BOQ sheets — choose one."), indicator: "orange" });
+						return;
+					}
+					d.hide();
+					boq_import_preview(frm, p);
+				});
+		},
+	});
+	d.show();
+}
+
+function boq_import_preview(frm, p) {
+	const esc = (v) => frappe.utils.escape_html(v == null ? "" : String(v));
+	const money = (v) => format_currency(flt(v), frappe.defaults.get_default("currency"));
+	const errors = p.errors || [];
+	const warnings = p.warnings || [];
+	const s = p.summary || {};
+	const list = (items, color) =>
+		items.length
+			? `<ul style="color:${color};margin:4px 0 10px 18px;padding:0">${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+			: "";
+
+	let html = `<div style="font-size:12px">`;
+	html += `<p class="text-muted" style="margin-bottom:6px">${__("Sheet")}: <b>${esc(p.sheet)}</b> · ${__("Header row")}: <b>${esc(p.header_row)}</b> · ${__("Columns")}: ${Object.entries(p.columns || {}).map(([k, v]) => `${esc(k)}=${esc(v)}`).join(", ")}</p>`;
+	if (s.categories !== undefined) {
+		html += `<p><b>${s.categories}</b> ${__("categories")}, <b>${s.lines}</b> ${__("lines")} (${s.unpriced_lines} ${__("unpriced")}), ${__("total")} <b>${money(s.total)}</b></p>`;
+	}
+	if (errors.length) html += `<h6 style="color:var(--red-600,#c0392b)">${__("Blocking — fix before importing")}</h6>` + list(errors, "var(--red-600,#c0392b)");
+	if (warnings.length) html += `<h6 style="color:var(--orange-600,#d35400)">${__("Warnings")}</h6>` + list(warnings, "var(--orange-600,#d35400)");
+
+	html += `<table class="table table-bordered table-sm" style="font-size:12px"><thead><tr>
+		<th>${__("Ref")}</th><th>${__("Source category")}</th><th>${__("Matched category")}</th>
+		<th class="text-right">${__("Lines")}</th><th class="text-right">${__("Amount")}</th><th class="text-right">${__("Sheet subtotal")}</th></tr></thead><tbody>`;
+	(p.categories || []).forEach((c) => {
+		const m = c.match
+			? `${esc(c.match.category_name)} <span class="text-muted">(${Math.round(c.match.score * 100)}%)</span>`
+			: `<span style="color:var(--red-600,#c0392b)">${__("No match")}</span>`;
+		const lines = c.lines
+			.map(
+				(l) => `<tr><td>${esc(l.boq_ref)}</td><td>${esc(String(l.description).slice(0, 120))}</td>
+				<td>${esc(l.unit || "")}${l.uom ? " → " + esc(l.uom) : ""}</td><td class="text-right">${flt(l.qty)}</td>
+				<td class="text-right">${money(l.rate)}</td><td class="text-right">${money(l.amount)}</td><td>${esc(l.remarks || "")}</td></tr>`
+			)
+			.join("");
+		html += `<tr><td>${esc(c.boq_ref)}</td><td>${esc(c.source_name)}</td><td>${m}</td>
+			<td class="text-right">${c.lines.length}</td><td class="text-right">${money(c.amount)}</td>
+			<td class="text-right">${c.sheet_subtotal == null ? "" : money(c.sheet_subtotal)}</td></tr>
+			<tr><td></td><td colspan="5"><details><summary class="text-muted">${__("Lines")}</summary>
+			<table class="table table-sm" style="font-size:11px;margin:4px 0"><thead><tr><th>${__("Ref")}</th><th>${__("Description")}</th><th>${__("Unit")}</th>
+			<th class="text-right">${__("Qty")}</th><th class="text-right">${__("Rate")}</th><th class="text-right">${__("Amount")}</th><th>${__("Remarks")}</th></tr></thead>
+			<tbody>${lines}</tbody></table></details></td></tr>`;
+	});
+	html += `</tbody></table>`;
+
+	if ((p.totals || []).length) {
+		html += `<p class="text-muted">${__("Sheet totals (reported, not applied)")}: ${p.totals.map((t) => `${esc(t.label)} = ${t.value == null ? "—" : money(t.value)}`).join(" · ")}</p>`;
+	}
+	if ((p.skipped || []).length) {
+		html += `<details><summary class="text-muted">${__("Skipped rows")} (${p.skipped.length})</summary><ul style="margin-left:18px">${p.skipped
+			.map((x) => `<li>${__("Row")} ${x.row}: ${esc(x.reason)} — ${esc(x.text)}</li>`)
+			.join("")}</ul></details>`;
+	}
+	html += `</div>`;
+
+	const blocked = errors.length > 0;
+	const d = new frappe.ui.Dialog({
+		title: __("Import BOQ — Preview"),
+		size: "extra-large",
+		fields: [
+			{ fieldname: "preview", fieldtype: "HTML" },
+			{
+				fieldname: "default_overhead",
+				fieldtype: "Percent",
+				label: __("Default Overhead % (applied to every imported category)"),
+				default: 0,
+				hidden: blocked ? 1 : 0,
+			},
+		],
+		primary_action_label: blocked ? __("Close") : __("Apply"),
+		primary_action(values) {
+			if (blocked) {
+				d.hide();
+				return;
+			}
+			const oh = flt(values.default_overhead);
+			if (oh < 0 || oh > 100) {
+				frappe.msgprint(__("Overhead % must be between 0 and 100."));
+				return;
+			}
+			const rows = frm.doc.items || [];
+			const n_cat = rows.filter((r) => r.row_type === "Category").length;
+			const n_lines = rows.length - n_cat;
+			const apply = () => {
+				boq_import_apply(frm, p, oh);
+				d.hide();
+			};
+			if (rows.some((r) => r.boq_category || r.description || r.item_code)) {
+				frappe.confirm(
+					__("This will remove the existing {0} categories and {1} lines and replace them with the imported BOQ. Continue?", [n_cat, n_lines]),
+					apply
+				);
+			} else {
+				apply();
+			}
+		},
+	});
+	d.fields_dict.preview.$wrapper.html(html);
+	d.show();
+}
+
+function boq_import_apply(frm, p, overhead) {
+	frm.clear_table("items");
+	(p.categories || []).forEach((c) => {
+		frm.add_child("items", {
+			row_type: "Category",
+			boq_category: c.match.name,
+			description: c.match.category_name,
+			control_action: "Stop",
+			overhead_percentage: overhead,
+			boq_ref: c.boq_ref,
+		});
+		c.lines.forEach((l) => {
+			frm.add_child("items", {
+				row_type: "Item",
+				boq_category: c.match.name,
+				description: l.description,
+				uom: l.uom || null,
+				qty: l.qty,
+				rate: l.rate,
+				amount: l.amount,
+				remarks: l.remarks || null,
+				boq_ref: l.boq_ref,
+			});
+		});
+	});
+	boq_renumber(frm);
+	frappe.show_alert({
+		message: __("Imported {0} categories / {1} lines — review and Save.", [p.summary.categories, p.summary.lines]),
+		indicator: "green",
+	});
 }

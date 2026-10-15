@@ -134,3 +134,30 @@ def toggle_reminder_done(name, done):
 	doc.is_done = cint(done)
 	doc.save(ignore_permissions=True)
 	return {"name": doc.name, "is_done": doc.is_done}
+
+
+# ---------------------------------------------------------------------------
+# BOQ Excel import — preview (parsing lives in boq_import.py, no DB writes here)
+# ---------------------------------------------------------------------------
+@frappe.whitelist()
+def preview_boq_import(file_url, budget=None, sheet=None):
+	"""Parse an uploaded BOQ .xlsx and return the import preview for the form dialog."""
+	from boq_budget_control.boq_budget.boq_import import build_preview
+
+	frappe.has_permission("BOQ Project Budget", "write", throw=True)
+	if budget and frappe.db.exists("BOQ Project Budget", budget):
+		if frappe.db.get_value("BOQ Project Budget", budget, "docstatus") != 0:
+			frappe.throw(_("BOQ can only be imported into a draft budget."))
+
+	if not (file_url or "").lower().split("?")[0].endswith(".xlsx"):
+		frappe.throw(_("Please upload an Excel .xlsx file."))
+	file_doc = frappe.get_doc("File", {"file_url": file_url})
+	path = file_doc.get_full_path()
+
+	masters = frappe.get_all("BOQ Budget Category", fields=["name", "category_name"])
+	uoms = frappe.get_all("UOM", pluck="name")
+	try:
+		return build_preview(path, masters, uoms, sheet=sheet or None)
+	except Exception:
+		frappe.log_error(title="BOQ import preview failed")
+		frappe.throw(_("Could not read this Excel file. Check that it is a valid .xlsx BOQ."))
