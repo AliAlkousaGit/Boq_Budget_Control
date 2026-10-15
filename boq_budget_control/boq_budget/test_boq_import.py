@@ -136,6 +136,16 @@ class TestRedwoodImport(unittest.TestCase):
 		self.assertTrue(any("GF Reception" in e for e in self.p["errors"]))
 
 
+class TestInMemorySource(unittest.TestCase):
+	def test_bytes_source_same_as_path(self):
+		"""Files kept in external storage (S3) arrive as bytes, not a disk path."""
+		import io
+		with open(VILLA, "rb") as f:
+			p = bi.build_preview(io.BytesIO(f.read()), _masters(VILLA_CATEGORIES), UOMS)
+		self.assertEqual(p["summary"]["total"], 1278508.0)
+		self.assertEqual(p["errors"], [])
+
+
 class TestHelpers(unittest.TestCase):
 	def test_similarity(self):
 		self.assertEqual(bi.similarity("Blockwork", "Block Work"), 1.0)

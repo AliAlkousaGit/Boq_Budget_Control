@@ -152,12 +152,36 @@ def preview_boq_import(file_url, budget=None, sheet=None):
 	if not (file_url or "").lower().split("?")[0].endswith(".xlsx"):
 		frappe.throw(_("Please upload an Excel .xlsx file."))
 	file_doc = frappe.get_doc("File", {"file_url": file_url})
-	path = file_doc.get_full_path()
+	source = _excel_source(file_doc)
 
 	masters = frappe.get_all("BOQ Budget Category", fields=["name", "category_name"])
 	uoms = frappe.get_all("UOM", pluck="name")
 	try:
-		return build_preview(path, masters, uoms, sheet=sheet or None)
+		return build_preview(source, masters, uoms, sheet=sheet or None)
 	except Exception:
 		frappe.log_error(title="BOQ import preview failed")
 		frappe.throw(_("Could not read this Excel file. Check that it is a valid .xlsx BOQ."))
+
+
+def _excel_source(file_doc):
+	"""Local path for files on this server's disk; in-memory bytes otherwise.
+
+	Files kept in external storage (dfp_external_storage / S3, URLs like
+	/file/<id>/<name>) have no disk path. File.get_full_path() would frappe.throw()
+	"Cannot access file path", and frappe.throw queues that message for the
+	browser even when the exception is caught, so it is never called for them.
+	Their File class overrides get_content() to download the object instead.
+	"""
+	import io
+	import os
+
+	url = file_doc.file_url or ""
+	if url.startswith(("/files/", "/private/files/")):
+		path = file_doc.get_full_path()
+		if os.path.exists(path):
+			return path
+
+	content = file_doc.get_content()
+	if isinstance(content, str):
+		frappe.throw(_("Could not read this file as Excel. Please re-upload the .xlsx file."))
+	return io.BytesIO(content)
